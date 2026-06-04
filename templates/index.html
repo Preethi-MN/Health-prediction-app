@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Prediction App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<h2>Patient Records</h2>
+
+<a href="/add">Add Patient</a>
+
+<table>
+
+<tr>
+    <th>Name</th>
+    <th>DOB</th>
+    <th>Email</th>
+    <th>Glucose</th>
+    <th>Haemoglobin</th>
+    <th>Cholesterol</th>
+    <th>Remarks</th>
+    <th>Edit</th>
+    <th>Delete</th>
+</tr>
+
+{% for p in patients %}
+<tr>
+    <td>{{ p.full_name }}</td>
+    <td>{{ p.dob }}</td>
+    <td>{{ p.email }}</td>
+    <td>{{ p.glucose }}</td>
+    <td>{{ p.haemoglobin }}</td>
+    <td>{{ p.cholesterol }}</td>
+    <td>{{ p.remarks }}</td>
+
+    <td>
+        <a href="/edit/{{ p.id }}">Edit</a>
+    </td>
+
+    <td>
+        <a href="/delete/{{ p.id }}">Delete</a>
+    </td>
+</tr>
+{% endfor %}
+
+</table>
+
+</body>
+</html>
