@@ -1,45 +1,144 @@
-# Health Prediction Application
+from flask import Flask, render_template, request, redirect
+from models import db, Patient
 
-## Overview
 
-A Flask-based Health Prediction Application that performs CRUD operations on patient records and predicts health risk using a Machine Learning model built with scikit-learn.
+app = Flask(__name__)
 
-## Features
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-* Add Patient
-* View Patient Records
-* Edit Patient Records
-* Delete Patient Records
-* Health Risk Prediction
-* SQLite Database Storage
+db.init_app(app)
 
-## Technologies Used
 
-* Python
-* Flask
-* SQLite
-* Pandas
-* Scikit-learn
-* HTML/CSS
+# Health Prediction Function
+def predict_health(glucose, haemoglobin, cholesterol):
 
-## Installation
+    prompt = f"""
+    Analyze these health values:
 
-```bash
-pip install -r requirements.txt
-python app.py
-```
+    Glucose: {glucose}
+    Haemoglobin: {haemoglobin}
+    Cholesterol: {cholesterol}
 
-## Machine Learning Model
+    Give a short health assessment.
+    """
 
-A Decision Tree Classifier is used to predict health risk based on:
+    payload = {
+        "inputs": prompt
+    }
 
-* Glucose
-* Haemoglobin
-* Cholesterol
+    try:
+        response = requests.post(
+            API_URL,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
 
-## Author
+        result = response.json()
 
-Preethi M N
+        if isinstance(result, list):
+            return result[0]["generated_text"]
 
-```
-```
+        return "Prediction unavailable"
+
+    except Exception as e:
+        return f"API Error: {str(e)}"
+
+
+# Home Page - Read Records
+@app.route('/')
+def index():
+
+    patients = Patient.query.all()
+
+    return render_template(
+        'index.html',
+        patients=patients
+    )
+
+
+# Add Patient - Create
+@app.route('/add', methods=['GET', 'POST'])
+def add_patient():
+
+    if request.method == 'POST':
+
+        glucose = float(request.form['glucose'])
+        haemoglobin = float(request.form['haemoglobin'])
+        cholesterol = float(request.form['cholesterol'])
+
+        remarks = predict_health(
+            glucose,
+            haemoglobin,
+            cholesterol
+        )
+
+        patient = Patient(
+            full_name=request.form['full_name'],
+            dob=request.form['dob'],
+            email=request.form['email'],
+            glucose=glucose,
+            haemoglobin=haemoglobin,
+            cholesterol=cholesterol,
+            remarks=remarks
+        )
+
+        db.session.add(patient)
+        db.session.commit()
+
+        return redirect('/')
+
+    return render_template('add_patient.html')
+
+
+# Edit Patient - Update
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit_patient(id):
+
+    patient = Patient.query.get_or_404(id)
+
+    if request.method == 'POST':
+
+        patient.full_name = request.form['full_name']
+        patient.dob = request.form['dob']
+        patient.email = request.form['email']
+
+        patient.glucose = float(request.form['glucose'])
+        patient.haemoglobin = float(request.form['haemoglobin'])
+        patient.cholesterol = float(request.form['cholesterol'])
+
+        patient.remarks = predict_health(
+            patient.glucose,
+            patient.haemoglobin,
+            patient.cholesterol
+        )
+
+        db.session.commit()
+
+        return redirect('/')
+
+    return render_template(
+        'edit_patient.html',
+        patient=patient
+    )
+
+
+# Delete Patient
+@app.route('/delete/<int:id>')
+def delete_patient(id):
+
+    patient = Patient.query.get_or_404(id)
+
+    db.session.delete(patient)
+    db.session.commit()
+
+    return redirect('/')
+
+
+if __name__ == '__main__':
+
+    with app.app_context():
+        db.create_all()
+
+    app.run(debug=True)
